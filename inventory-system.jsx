@@ -32,39 +32,9 @@ export default function InventoryManagementSystem() {
   const [installments, setInstallments] = useState([]);
   const [movements, setMovements] = useState([]);
   const [priceHistory, setPriceHistory] = useState([]);
-  
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [authChecking, setAuthChecking] = useState(true);
-
-  // Check authentication on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const sessionData = await window.storage.get('user-session', false).catch(() => null);
-        if (sessionData?.value) {
-          const session = JSON.parse(sessionData.value);
-          // Check if session is still valid (24 hours)
-          if (new Date().getTime() - new Date(session.loginTime).getTime() < 24 * 60 * 60 * 1000) {
-            setCurrentUser(session.user);
-            setIsAuthenticated(true);
-          }
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-      } finally {
-        setAuthChecking(false);
-      }
-    };
-    
-    checkAuth();
-  }, []);
 
   // Load data from storage on mount (SHARED STORAGE for team collaboration)
   useEffect(() => {
-    if (!isAuthenticated) return;
-    
     const loadData = async () => {
       try {
         const [productsData, salesData, customersData, installmentsData, movementsData, priceHistoryData] = await Promise.all([
@@ -90,63 +60,44 @@ export default function InventoryManagementSystem() {
     };
     
     loadData();
-  }, [isAuthenticated]);
+  }, []);
   
   // Save data to SHARED storage whenever it changes (all team members see the same data)
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading) {
       window.storage.set('products', JSON.stringify(products), true).catch(console.error);
     }
-  }, [products, loading, isAuthenticated]);
+  }, [products, loading]);
   
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading) {
       window.storage.set('sales', JSON.stringify(sales), true).catch(console.error);
     }
-  }, [sales, loading, isAuthenticated]);
+  }, [sales, loading]);
   
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading) {
       window.storage.set('customers', JSON.stringify(customers), true).catch(console.error);
     }
-  }, [customers, loading, isAuthenticated]);
+  }, [customers, loading]);
   
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading) {
       window.storage.set('installments', JSON.stringify(installments), true).catch(console.error);
     }
-  }, [installments, loading, isAuthenticated]);
+  }, [installments, loading]);
   
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading) {
       window.storage.set('movements', JSON.stringify(movements), true).catch(console.error);
     }
-  }, [movements, loading, isAuthenticated]);
+  }, [movements, loading]);
   
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading) {
       window.storage.set('priceHistory', JSON.stringify(priceHistory), true).catch(console.error);
     }
-  }, [priceHistory, loading, isAuthenticated]);
-  
-  if (authChecking) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Checking authentication...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <AuthenticationScreen 
-        onLogin={(user) => {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-        }} 
-      />
-    );
-  }
+  }, [priceHistory, loading]);
   
   if (loading) {
     return (
@@ -155,15 +106,49 @@ export default function InventoryManagementSystem() {
       </div>
     );
   }
-  
-  const handleLogout = async () => {
-    try {
-      await window.storage.delete('user-session', false);
-      setIsAuthenticated(false);
-      setCurrentUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+
+  // Add deleteSale function
+  const deleteSale = (saleId) => {
+    const saleToDelete = sales.find(s => s.id === saleId);
+    if (!saleToDelete) return;
+
+    if (!confirm("Are you sure you want to delete this sale? Stock will be restored.")) return;
+
+    // Restore product stock
+    setProducts(products.map(product => {
+      if (product.id === saleToDelete.productId) {
+        return {
+          ...product,
+          quantityInStock: product.quantityInStock + saleToDelete.quantity
+        };
+      }
+      return product;
+    }));
+
+    // Remove sale
+    setSales(sales.filter(s => s.id !== saleId));
+  };
+
+  // Add exportData function
+  const exportData = () => {
+    const data = {
+      products,
+      sales,
+      customers,
+      installments,
+      exportedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventory-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
   };
   
   return (
@@ -182,17 +167,10 @@ export default function InventoryManagementSystem() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-right mr-3 hidden sm:block">
-                <div className="text-sm text-white font-medium">{currentUser?.name}</div>
-                <div className="text-xs text-amber-400">{currentUser?.role}</div>
-              </div>
               <button 
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm border border-red-500/20"
+                onClick={exportData}
+                className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors text-sm border border-amber-500/20"
               >
-                Logout
-              </button>
-              <button className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors text-sm border border-amber-500/20">
                 <Download className="w-4 h-4 inline mr-2" />
                 Export Data
               </button>
@@ -256,6 +234,7 @@ export default function InventoryManagementSystem() {
             products={products}
             setProducts={setProducts}
             customers={customers}
+            deleteSale={deleteSale}
           />
         )}
         {activeTab === 'customers' && (
@@ -263,6 +242,7 @@ export default function InventoryManagementSystem() {
             customers={customers}
             setCustomers={setCustomers}
             installments={installments}
+            sales={sales}
           />
         )}
         {activeTab === 'installments' && (
@@ -928,10 +908,27 @@ function ProductForm({ product, onSave, onCancel }) {
   
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name || !formData.category || !formData.purchaseCost || !formData.currentSellingPrice) {
+      alert('Please fill in all required fields (Name, Category, Purchase Cost, Selling Price)');
+      return;
+    }
+    
+    // Ensure numeric values are properly parsed
+    const processedData = {
+      ...formData,
+      purchaseCost: parseFloat(formData.purchaseCost) || 0,
+      currentSellingPrice: parseFloat(formData.currentSellingPrice) || 0,
+      quantityInDisplay: parseInt(formData.quantityInDisplay) || 0,
+      quantityInStorage: parseInt(formData.quantityInStorage) || 0,
+      minimumStockAlert: parseInt(formData.minimumStockAlert) || 5
+    };
+    
     if (product) {
-      onSave(product.id, formData);
+      onSave(product.id, processedData);
     } else {
-      onSave(formData);
+      onSave(processedData);
     }
   };
   
@@ -995,8 +992,9 @@ function ProductForm({ product, onSave, onCancel }) {
                 type="number"
                 required
                 step="0.01"
+                min="0"
                 value={formData.purchaseCost}
-                onChange={(e) => setFormData({ ...formData, purchaseCost: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, purchaseCost: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1007,8 +1005,9 @@ function ProductForm({ product, onSave, onCancel }) {
                 type="number"
                 required
                 step="0.01"
+                min="0"
                 value={formData.currentSellingPrice}
-                onChange={(e) => setFormData({ ...formData, currentSellingPrice: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, currentSellingPrice: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1017,8 +1016,9 @@ function ProductForm({ product, onSave, onCancel }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">Quantity in Display</label>
               <input
                 type="number"
+                min="0"
                 value={formData.quantityInDisplay}
-                onChange={(e) => setFormData({ ...formData, quantityInDisplay: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, quantityInDisplay: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1027,8 +1027,9 @@ function ProductForm({ product, onSave, onCancel }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">Quantity in Storage</label>
               <input
                 type="number"
+                min="0"
                 value={formData.quantityInStorage}
-                onChange={(e) => setFormData({ ...formData, quantityInStorage: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, quantityInStorage: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1037,8 +1038,9 @@ function ProductForm({ product, onSave, onCancel }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">Minimum Stock Alert</label>
               <input
                 type="number"
+                min="0"
                 value={formData.minimumStockAlert}
-                onChange={(e) => setFormData({ ...formData, minimumStockAlert: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, minimumStockAlert: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1160,7 +1162,7 @@ function StockMovementModal({ product, onMove, onClose }) {
 }
 
 // Sales Tab
-function SalesTab({ sales, setSales, products, setProducts, customers }) {
+function SalesTab({ sales, setSales, products, setProducts, customers, deleteSale }) {
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -1246,6 +1248,7 @@ function SalesTab({ sales, setSales, products, setProducts, customers }) {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Discount</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Total</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Profit</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -1266,6 +1269,14 @@ function SalesTab({ sales, setSales, products, setProducts, customers }) {
                       <span className={`font-semibold ${sale.profit > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatCurrency(sale.profit)}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => deleteSale(sale.id)}
+                        className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -1448,7 +1459,7 @@ function SaleForm({ products, customers, onSave, onCancel }) {
 }
 
 // Customers Tab
-function CustomersTab({ customers, setCustomers, installments }) {
+function CustomersTab({ customers, setCustomers, installments, sales }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1517,6 +1528,9 @@ function CustomersTab({ customers, setCustomers, installments }) {
           const activeInstallments = customerInstallments.filter(i => i.status !== 'Paid');
           const totalOwed = activeInstallments.reduce((sum, i) => sum + i.remainingBalance, 0);
           
+          const customerSales = sales.filter(s => s.customerId === customer.id);
+          const totalSpent = customerSales.reduce((sum, s) => sum + s.total, 0);
+          
           return (
             <div key={customer.id} className="bg-slate-800/50 backdrop-blur rounded-xl p-5 border border-slate-700/50 hover:border-amber-500/30 transition-colors">
               <div className="flex items-start justify-between mb-3">
@@ -1557,6 +1571,26 @@ function CustomersTab({ customers, setCustomers, installments }) {
                   </div>
                 )}
               </div>
+              
+              {customerSales.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-700/50">
+                  <div className="text-sm text-slate-400 mb-2">Purchase History:</div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto text-xs">
+                    {customerSales.map(sale => (
+                      <div key={sale.id} className="flex justify-between text-slate-300">
+                        <span>{formatDate(sale.date)}</span>
+                        <span>{formatCurrency(sale.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-2 text-sm">
+                    <span className="text-slate-400">Total Spent:</span>
+                    <span className="text-emerald-400 font-semibold">
+                      {formatCurrency(totalSpent)}
+                    </span>
+                  </div>
+                </div>
+              )}
               
               {customer.notes && (
                 <div className="mt-3 pt-3 border-t border-slate-700/50">
