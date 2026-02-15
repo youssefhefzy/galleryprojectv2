@@ -107,7 +107,7 @@ export default function InventoryManagementSystem() {
     );
   }
 
-  // Add deleteSale function
+  // Delete sale function with stock restore
   const deleteSale = (saleId) => {
     const saleToDelete = sales.find(s => s.id === saleId);
     if (!saleToDelete) return;
@@ -129,7 +129,7 @@ export default function InventoryManagementSystem() {
     setSales(sales.filter(s => s.id !== saleId));
   };
 
-  // Add exportData function
+  // Export data function
   const exportData = () => {
     const data = {
       products,
@@ -908,27 +908,10 @@ function ProductForm({ product, onSave, onCancel }) {
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Validate required fields
-    if (!formData.name || !formData.category || !formData.purchaseCost || !formData.currentSellingPrice) {
-      alert('Please fill in all required fields (Name, Category, Purchase Cost, Selling Price)');
-      return;
-    }
-    
-    // Ensure numeric values are properly parsed
-    const processedData = {
-      ...formData,
-      purchaseCost: parseFloat(formData.purchaseCost) || 0,
-      currentSellingPrice: parseFloat(formData.currentSellingPrice) || 0,
-      quantityInDisplay: parseInt(formData.quantityInDisplay) || 0,
-      quantityInStorage: parseInt(formData.quantityInStorage) || 0,
-      minimumStockAlert: parseInt(formData.minimumStockAlert) || 5
-    };
-    
     if (product) {
-      onSave(product.id, processedData);
+      onSave(product.id, formData);
     } else {
-      onSave(processedData);
+      onSave(formData);
     }
   };
   
@@ -992,9 +975,8 @@ function ProductForm({ product, onSave, onCancel }) {
                 type="number"
                 required
                 step="0.01"
-                min="0"
                 value={formData.purchaseCost}
-                onChange={(e) => setFormData({ ...formData, purchaseCost: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, purchaseCost: parseFloat(e.target.value) })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1005,9 +987,8 @@ function ProductForm({ product, onSave, onCancel }) {
                 type="number"
                 required
                 step="0.01"
-                min="0"
                 value={formData.currentSellingPrice}
-                onChange={(e) => setFormData({ ...formData, currentSellingPrice: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, currentSellingPrice: parseFloat(e.target.value) })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1016,9 +997,8 @@ function ProductForm({ product, onSave, onCancel }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">Quantity in Display</label>
               <input
                 type="number"
-                min="0"
                 value={formData.quantityInDisplay}
-                onChange={(e) => setFormData({ ...formData, quantityInDisplay: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, quantityInDisplay: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1027,9 +1007,8 @@ function ProductForm({ product, onSave, onCancel }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">Quantity in Storage</label>
               <input
                 type="number"
-                min="0"
                 value={formData.quantityInStorage}
-                onChange={(e) => setFormData({ ...formData, quantityInStorage: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, quantityInStorage: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -1038,9 +1017,8 @@ function ProductForm({ product, onSave, onCancel }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">Minimum Stock Alert</label>
               <input
                 type="number"
-                min="0"
                 value={formData.minimumStockAlert}
-                onChange={(e) => setFormData({ ...formData, minimumStockAlert: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, minimumStockAlert: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
