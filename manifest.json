@@ -1,11 +1,11 @@
 {
-  "name": "Sharf Aldin Inventory System",
+  "name": "Inventory Manager",
   "short_name": "Inventory",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#111827",
-  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "description": "Inventory & Sales System",
   "icons": [
     {
       "src": "/icon-192.png",
