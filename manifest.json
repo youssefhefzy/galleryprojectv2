@@ -2,7 +2,7 @@
   "name": "Sharf-Aldin Gallery",
   "short_name": "Gallery",
   "description": "Inventory & Sales Management System",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
