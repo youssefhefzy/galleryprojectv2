@@ -1,0 +1,2285 @@
+import React, { useState, useEffect } from 'react';
+import { Camera, Package, DollarSign, Users, TrendingUp, AlertCircle, Plus, Search, Download, ChevronDown, ChevronRight, Edit, Trash2, Save, X, ArrowUpDown, Calendar, CreditCard, Bell } from 'lucide-react';
+
+// Utility Functions
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(amount);
+};
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+// Main App Component
+export default function InventoryManagementSystem() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [loading, setLoading] = useState(true);
+  
+  // State Management
+  const [products, setProducts] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [installments, setInstallments] = useState([]);
+  const [movements, setMovements] = useState([]);
+  const [priceHistory, setPriceHistory] = useState([]);
+
+  // Load data from storage on mount (SHARED STORAGE for team collaboration)
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [productsData, salesData, customersData, installmentsData, movementsData, priceHistoryData] = await Promise.all([
+          window.storage.get('products', true).catch(() => null),
+          window.storage.get('sales', true).catch(() => null),
+          window.storage.get('customers', true).catch(() => null),
+          window.storage.get('installments', true).catch(() => null),
+          window.storage.get('movements', true).catch(() => null),
+          window.storage.get('priceHistory', true).catch(() => null)
+        ]);
+        
+        if (productsData?.value) setProducts(JSON.parse(productsData.value));
+        if (salesData?.value) setSales(JSON.parse(salesData.value));
+        if (customersData?.value) setCustomers(JSON.parse(customersData.value));
+        if (installmentsData?.value) setInstallments(JSON.parse(installmentsData.value));
+        if (movementsData?.value) setMovements(JSON.parse(movementsData.value));
+        if (priceHistoryData?.value) setPriceHistory(JSON.parse(priceHistoryData.value));
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+  
+  // Save data to SHARED storage whenever it changes (all team members see the same data)
+  useEffect(() => {
+    if (!loading) {
+      window.storage.set('products', JSON.stringify(products), true).catch(console.error);
+    }
+  }, [products, loading]);
+  
+  useEffect(() => {
+    if (!loading) {
+      window.storage.set('sales', JSON.stringify(sales), true).catch(console.error);
+    }
+  }, [sales, loading]);
+  
+  useEffect(() => {
+    if (!loading) {
+      window.storage.set('customers', JSON.stringify(customers), true).catch(console.error);
+    }
+  }, [customers, loading]);
+  
+  useEffect(() => {
+    if (!loading) {
+      window.storage.set('installments', JSON.stringify(installments), true).catch(console.error);
+    }
+  }, [installments, loading]);
+  
+  useEffect(() => {
+    if (!loading) {
+      window.storage.set('movements', JSON.stringify(movements), true).catch(console.error);
+    }
+  }, [movements, loading]);
+  
+  useEffect(() => {
+    if (!loading) {
+      window.storage.set('priceHistory', JSON.stringify(priceHistory), true).catch(console.error);
+    }
+  }, [priceHistory, loading]);
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading system...</div>
+      </div>
+    );
+  }
+
+  // Delete sale function with stock restore
+  const deleteSale = (saleId) => {
+    const saleToDelete = sales.find(s => s.id === saleId);
+    if (!saleToDelete) return;
+
+    if (!confirm("Are you sure you want to delete this sale? Stock will be restored.")) return;
+
+    // Restore product stock
+    setProducts(products.map(product => {
+      if (product.id === saleToDelete.productId) {
+        return {
+          ...product,
+          quantityInStock: product.quantityInStock + saleToDelete.quantity
+        };
+      }
+      return product;
+    }));
+
+    // Remove sale
+    setSales(sales.filter(s => s.id !== saleId));
+  };
+
+  // Export data function
+  const exportData = () => {
+    const data = {
+      products,
+      sales,
+      customers,
+      installments,
+      exportedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventory-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Header */}
+      <header className="bg-slate-900/50 backdrop-blur-lg border-b border-amber-500/20 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+                <Package className="w-6 h-6 text-slate-900" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Sharf-Aldin Gallery</h1>
+                <p className="text-xs text-amber-400">Inventory & Sales Management</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={exportData}
+                className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors text-sm border border-amber-500/20"
+              >
+                <Download className="w-4 h-4 inline mr-2" />
+                Export Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      {/* Navigation */}
+      <nav className="bg-slate-900/30 backdrop-blur border-b border-slate-700/50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex gap-1 overflow-x-auto">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
+              { id: 'products', label: 'Products', icon: Package },
+              { id: 'sales', label: 'Sales', icon: DollarSign },
+              { id: 'customers', label: 'Customers', icon: Users },
+              { id: 'installments', label: 'Installments', icon: CreditCard },
+              { id: 'reports', label: 'Reports', icon: TrendingUp }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-3 font-medium transition-all flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+      
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {activeTab === 'dashboard' && (
+          <Dashboard 
+            products={products} 
+            sales={sales} 
+            installments={installments}
+            customers={customers}
+          />
+        )}
+        {activeTab === 'products' && (
+          <ProductsTab 
+            products={products} 
+            setProducts={setProducts}
+            setPriceHistory={setPriceHistory}
+            movements={movements}
+            setMovements={setMovements}
+          />
+        )}
+        {activeTab === 'sales' && (
+          <SalesTab 
+            sales={sales}
+            setSales={setSales}
+            products={products}
+            setProducts={setProducts}
+            customers={customers}
+            deleteSale={deleteSale}
+          />
+        )}
+        {activeTab === 'customers' && (
+          <CustomersTab 
+            customers={customers}
+            setCustomers={setCustomers}
+            installments={installments}
+            sales={sales}
+          />
+        )}
+        {activeTab === 'installments' && (
+          <InstallmentsTab 
+            installments={installments}
+            setInstallments={setInstallments}
+            customers={customers}
+            sales={sales}
+          />
+        )}
+        {activeTab === 'reports' && (
+          <ReportsTab 
+            sales={sales}
+            products={products}
+            installments={installments}
+          />
+        )}
+      </main>
+    </div>
+  );
+}
+
+// Authentication Screen Component
+function AuthenticationScreen({ onLogin }) {
+  const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    name: '',
+    role: 'Staff'
+  });
+  const [error, setError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsProcessing(true);
+
+    try {
+      if (mode === 'register') {
+        // Check if this is the first user (master account)
+        const usersData = await window.storage.get('registered-users', true).catch(() => null);
+        const users = usersData?.value ? JSON.parse(usersData.value) : [];
+        
+        // Check if username already exists
+        if (users.find(u => u.username === formData.username)) {
+          setError('Username already exists');
+          setIsProcessing(false);
+          return;
+        }
+
+        // For first user, automatically make them Admin
+        const newUser = {
+          id: generateId(),
+          username: formData.username,
+          password: formData.password, // In production, this should be hashed!
+          name: formData.name,
+          role: users.length === 0 ? 'Admin' : formData.role,
+          createdAt: new Date().toISOString()
+        };
+
+        users.push(newUser);
+        await window.storage.set('registered-users', JSON.stringify(users), true);
+
+        // Auto-login after registration
+        const session = {
+          user: { id: newUser.id, username: newUser.username, name: newUser.name, role: newUser.role },
+          loginTime: new Date().toISOString()
+        };
+        await window.storage.set('user-session', JSON.stringify(session), false);
+        
+        onLogin(session.user);
+      } else {
+        // Login mode
+        const usersData = await window.storage.get('registered-users', true).catch(() => null);
+        
+        if (!usersData?.value) {
+          setError('No users registered. Please register first.');
+          setIsProcessing(false);
+          return;
+        }
+
+        const users = JSON.parse(usersData.value);
+        const user = users.find(u => u.username === formData.username && u.password === formData.password);
+
+        if (!user) {
+          setError('Invalid username or password');
+          setIsProcessing(false);
+          return;
+        }
+
+        // Create session
+        const session = {
+          user: { id: user.id, username: user.username, name: user.name, role: user.role },
+          loginTime: new Date().toISOString()
+        };
+        await window.storage.set('user-session', JSON.stringify(session), false);
+        
+        onLogin(session.user);
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+      console.error('Auth error:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Package className="w-10 h-10 text-slate-900" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Sharf-Aldin Gallery</h1>
+          <p className="text-slate-400">Inventory & Sales Management System</p>
+        </div>
+
+        {/* Auth Card */}
+        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-slate-700/50">
+            <button
+              onClick={() => {
+                setMode('login');
+                setError('');
+              }}
+              className={`flex-1 px-6 py-4 font-semibold transition-colors ${
+                mode === 'login'
+                  ? 'bg-amber-500/10 text-amber-400 border-b-2 border-amber-400'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => {
+                setMode('register');
+                setError('');
+              }}
+              className={`flex-1 px-6 py-4 font-semibold transition-colors ${
+                mode === 'register'
+                  ? 'bg-amber-500/10 text-amber-400 border-b-2 border-amber-400'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Register
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {mode === 'register' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  placeholder="Enter your full name"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
+              <input
+                type="text"
+                required
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+                placeholder="Choose a username"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+              <input
+                type="password"
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+                placeholder="Enter password"
+              />
+            </div>
+
+            {mode === 'register' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50 transition-colors"
+                >
+                  <option value="Admin">Admin - Full Access</option>
+                  <option value="Manager">Manager - Sales & Reports</option>
+                  <option value="Staff">Staff - Sales Only</option>
+                </select>
+                <p className="text-xs text-slate-400 mt-2">
+                  Note: First registered user automatically becomes Admin
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-600 disabled:to-slate-700 text-slate-900 font-semibold rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:text-slate-400"
+            >
+              {isProcessing ? 'Processing...' : mode === 'login' ? 'Login' : 'Create Account'}
+            </button>
+          </form>
+
+          {/* Info */}
+          <div className="px-6 pb-6">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-300">
+                  <p className="font-semibold mb-1">Secure Team Access</p>
+                  <p className="text-xs text-blue-400">
+                    Only registered users can access this system. All data is shared across your team in real-time.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-slate-500 text-sm mt-6">
+          Protected inventory management system
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Dashboard Component
+function Dashboard({ products, sales, installments, customers }) {
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  
+  const monthlySales = sales.filter(sale => {
+    const saleDate = new Date(sale.date);
+    return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+  });
+  
+  const totalRevenue = monthlySales.reduce((sum, sale) => sum + sale.total, 0);
+  const totalProfit = monthlySales.reduce((sum, sale) => sum + sale.profit, 0);
+  const inventoryValue = products.reduce((sum, p) => sum + (p.purchaseCost * p.quantityInStock), 0);
+  
+  const lowStockProducts = products.filter(p => p.quantityInStock <= p.minimumStockAlert && p.status === 'Active');
+  
+  const outstandingInstallments = installments.filter(i => i.status !== 'Paid');
+  const totalOutstanding = outstandingInstallments.reduce((sum, i) => sum + i.remainingBalance, 0);
+  
+  const topProducts = [...products]
+    .map(product => {
+      const productSales = sales.filter(s => s.productId === product.id);
+      const totalQuantity = productSales.reduce((sum, s) => sum + s.quantity, 0);
+      return { ...product, soldQuantity: totalQuantity };
+    })
+    .sort((a, b) => b.soldQuantity - a.soldQuantity)
+    .slice(0, 5);
+  
+  return (
+    <div className="space-y-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Monthly Revenue"
+          value={formatCurrency(totalRevenue)}
+          icon={DollarSign}
+          color="emerald"
+          subtitle={`${monthlySales.length} sales this month`}
+        />
+        <StatCard
+          title="Monthly Profit"
+          value={formatCurrency(totalProfit)}
+          icon={TrendingUp}
+          color="blue"
+          subtitle={`${((totalProfit / totalRevenue) * 100 || 0).toFixed(1)}% margin`}
+        />
+        <StatCard
+          title="Inventory Value"
+          value={formatCurrency(inventoryValue)}
+          icon={Package}
+          color="purple"
+          subtitle={`${products.length} products`}
+        />
+        <StatCard
+          title="Outstanding Payments"
+          value={formatCurrency(totalOutstanding)}
+          icon={CreditCard}
+          color="amber"
+          subtitle={`${outstandingInstallments.length} pending`}
+        />
+      </div>
+      
+      {/* Alerts */}
+      {lowStockProducts.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-red-400 font-semibold mb-2">Low Stock Alert</h3>
+              <div className="space-y-1">
+                {lowStockProducts.map(product => (
+                  <div key={product.id} className="text-sm text-red-300">
+                    {product.name}: {product.quantityInStock} units (min: {product.minimumStockAlert})
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Selling Products */}
+        <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700/50">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-amber-400" />
+            Top Selling Products
+          </h2>
+          <div className="space-y-3">
+            {topProducts.length > 0 ? topProducts.map((product, index) => (
+              <div key={product.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-400 font-bold text-sm">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">{product.name}</div>
+                    <div className="text-xs text-slate-400">{product.category}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-white font-semibold">{product.soldQuantity} sold</div>
+                  <div className="text-xs text-slate-400">Stock: {product.quantityInStock}</div>
+                </div>
+              </div>
+            )) : (
+              <div className="text-center text-slate-400 py-8">No sales data yet</div>
+            )}
+          </div>
+        </div>
+        
+        {/* Recent Activity */}
+        <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700/50">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-amber-400" />
+            Recent Sales
+          </h2>
+          <div className="space-y-3">
+            {sales.slice(-5).reverse().map(sale => {
+              const product = products.find(p => p.id === sale.productId);
+              return (
+                <div key={sale.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                  <div>
+                    <div className="text-white font-medium">{product?.name || 'Unknown Product'}</div>
+                    <div className="text-xs text-slate-400">{formatDate(sale.date)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-emerald-400 font-semibold">{formatCurrency(sale.total)}</div>
+                    <div className="text-xs text-slate-400">Qty: {sale.quantity}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {sales.length === 0 && (
+              <div className="text-center text-slate-400 py-8">No sales yet</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon: Icon, color, subtitle }) {
+  const colorClasses = {
+    emerald: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30 text-emerald-400',
+    blue: 'from-blue-500/20 to-blue-600/20 border-blue-500/30 text-blue-400',
+    purple: 'from-purple-500/20 to-purple-600/20 border-purple-500/30 text-purple-400',
+    amber: 'from-amber-500/20 to-amber-600/20 border-amber-500/30 text-amber-400'
+  };
+  
+  return (
+    <div className={`bg-gradient-to-br ${colorClasses[color]} backdrop-blur rounded-xl p-6 border`}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="text-sm text-slate-300 font-medium">{title}</div>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="text-2xl font-bold text-white mb-1">{value}</div>
+      <div className="text-xs text-slate-400">{subtitle}</div>
+    </div>
+  );
+}
+
+// Products Tab
+function ProductsTab({ products, setProducts, setPriceHistory, movements, setMovements }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [showMovementModal, setShowMovementModal] = useState(null);
+  
+  const categories = ['All', ...new Set(products.map(p => p.category))];
+  
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.barcode?.includes(searchTerm);
+    const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
+  
+  const addProduct = (productData) => {
+    const newProduct = {
+      id: generateId(),
+      ...productData,
+      quantityInStock: productData.quantityInDisplay + productData.quantityInStorage,
+      createdAt: new Date().toISOString()
+    };
+    setProducts([...products, newProduct]);
+    setShowAddForm(false);
+  };
+  
+  const updateProduct = (id, updates) => {
+    const oldProduct = products.find(p => p.id === id);
+    
+    // Track price change
+    if (oldProduct.currentSellingPrice !== updates.currentSellingPrice) {
+      setPriceHistory(prev => [...prev, {
+        id: generateId(),
+        productId: id,
+        oldPrice: oldProduct.currentSellingPrice,
+        newPrice: updates.currentSellingPrice,
+        date: new Date().toISOString(),
+        reason: updates.priceChangeReason || 'Manual update'
+      }]);
+    }
+    
+    setProducts(products.map(p => 
+      p.id === id 
+        ? { ...p, ...updates, quantityInStock: updates.quantityInDisplay + updates.quantityInStorage }
+        : p
+    ));
+    setEditingProduct(null);
+  };
+  
+  const deleteProduct = (id) => {
+    if (confirm('Are you sure you want to delete this product?')) {
+      setProducts(products.filter(p => p.id !== id));
+    }
+  };
+  
+  const moveStock = (productId, from, to, quantity) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const movement = {
+      id: generateId(),
+      productId,
+      from,
+      to,
+      quantity,
+      date: new Date().toISOString()
+    };
+    
+    setMovements([...movements, movement]);
+    
+    const updates = {};
+    if (from === 'display') updates.quantityInDisplay = product.quantityInDisplay - quantity;
+    if (from === 'storage') updates.quantityInStorage = product.quantityInStorage - quantity;
+    if (to === 'display') updates.quantityInDisplay = (product.quantityInDisplay || 0) + quantity;
+    if (to === 'storage') updates.quantityInStorage = (product.quantityInStorage || 0) + quantity;
+    
+    updateProduct(productId, updates);
+    setShowMovementModal(null);
+  };
+  
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Product Inventory</h2>
+          <p className="text-slate-400 text-sm">Manage your product catalog and stock levels</p>
+        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Product
+        </button>
+      </div>
+      
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search products or scan barcode..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/50"
+          />
+        </div>
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+        >
+          <option value="all">All Categories</option>
+          {categories.filter(c => c !== 'All').map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+      
+      {/* Products Table */}
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl border border-slate-700/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-900/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Product</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Cost</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Stock</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Display</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Storage</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/50">
+              {filteredProducts.map(product => (
+                <tr key={product.id} className="hover:bg-slate-900/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-white">{product.name}</div>
+                    {product.barcode && (
+                      <div className="text-xs text-slate-400">Barcode: {product.barcode}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-slate-300">{product.category}</td>
+                  <td className="px-4 py-3 text-emerald-400 font-semibold">{formatCurrency(product.currentSellingPrice)}</td>
+                  <td className="px-4 py-3 text-slate-300">{formatCurrency(product.purchaseCost)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`font-semibold ${
+                      product.quantityInStock <= product.minimumStockAlert 
+                        ? 'text-red-400' 
+                        : 'text-white'
+                    }`}>
+                      {product.quantityInStock}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-300">{product.quantityInDisplay}</td>
+                  <td className="px-4 py-3 text-slate-300">{product.quantityInStorage}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      product.status === 'Active' 
+                        ? 'bg-emerald-500/20 text-emerald-400' 
+                        : 'bg-slate-600/20 text-slate-400'
+                    }`}>
+                      {product.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowMovementModal(product)}
+                        className="p-1.5 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
+                        title="Move stock"
+                      >
+                        <ArrowUpDown className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setEditingProduct(product)}
+                        className="p-1.5 hover:bg-amber-500/20 text-amber-400 rounded transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(product.id)}
+                        className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-12 text-slate-400">
+              No products found
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Add/Edit Product Modal */}
+      {(showAddForm || editingProduct) && (
+        <ProductForm
+          product={editingProduct}
+          onSave={editingProduct ? updateProduct : addProduct}
+          onCancel={() => {
+            setShowAddForm(false);
+            setEditingProduct(null);
+          }}
+        />
+      )}
+      
+      {/* Stock Movement Modal */}
+      {showMovementModal && (
+        <StockMovementModal
+          product={showMovementModal}
+          onMove={moveStock}
+          onClose={() => setShowMovementModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProductForm({ product, onSave, onCancel }) {
+  const [formData, setFormData] = useState(product || {
+    name: '',
+    barcode: '',
+    category: '',
+    supplier: '',
+    purchaseCost: '',
+    currentSellingPrice: '',
+    quantityInDisplay: 0,
+    quantityInStorage: 0,
+    minimumStockAlert: 5,
+    status: 'Active'
+  });
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (product) {
+      onSave(product.id, formData);
+    } else {
+      onSave(formData);
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-slate-700/50">
+          <h3 className="text-xl font-bold text-white">
+            {product ? 'Edit Product' : 'Add New Product'}
+          </h3>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Product Name *</label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Barcode</label>
+              <input
+                type="text"
+                value={formData.barcode}
+                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Category *</label>
+              <input
+                type="text"
+                required
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+                placeholder="e.g., Chandeliers, Lighting"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Supplier</label>
+              <input
+                type="text"
+                value={formData.supplier}
+                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Purchase Cost *</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                value={formData.purchaseCost}
+                onChange={(e) => setFormData({ ...formData, purchaseCost: parseFloat(e.target.value) })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Selling Price *</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                value={formData.currentSellingPrice}
+                onChange={(e) => setFormData({ ...formData, currentSellingPrice: parseFloat(e.target.value) })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Quantity in Display</label>
+              <input
+                type="number"
+                value={formData.quantityInDisplay}
+                onChange={(e) => setFormData({ ...formData, quantityInDisplay: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Quantity in Storage</label>
+              <input
+                type="number"
+                value={formData.quantityInStorage}
+                onChange={(e) => setFormData({ ...formData, quantityInStorage: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Minimum Stock Alert</label>
+              <input
+                type="number"
+                value={formData.minimumStockAlert}
+                onChange={(e) => setFormData({ ...formData, minimumStockAlert: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              >
+                <option value="Active">Active</option>
+                <option value="Discontinued">Discontinued</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              <Save className="w-4 h-4 inline mr-2" />
+              Save Product
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function StockMovementModal({ product, onMove, onClose }) {
+  const [from, setFrom] = useState('storage');
+  const [to, setTo] = useState('display');
+  const [quantity, setQuantity] = useState(1);
+  
+  const maxQuantity = from === 'display' ? product.quantityInDisplay : product.quantityInStorage;
+  
+  const handleMove = (e) => {
+    e.preventDefault();
+    onMove(product.id, from, to, quantity);
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700/50 max-w-md w-full">
+        <div className="p-6 border-b border-slate-700/50">
+          <h3 className="text-xl font-bold text-white">Move Stock</h3>
+          <p className="text-sm text-slate-400 mt-1">{product.name}</p>
+        </div>
+        
+        <form onSubmit={handleMove} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">From</label>
+            <select
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="display">Display ({product.quantityInDisplay} available)</option>
+              <option value="storage">Storage ({product.quantityInStorage} available)</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">To</label>
+            <select
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="display">Display</option>
+              <option value="storage">Storage</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Quantity (max: {maxQuantity})
+            </label>
+            <input
+              type="number"
+              min="1"
+              max={maxQuantity}
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+            <button
+              type="submit"
+              disabled={from === to || quantity > maxQuantity || quantity < 1}
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              Move Stock
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Sales Tab
+function SalesTab({ sales, setSales, products, setProducts, customers, deleteSale }) {
+  const [showSaleForm, setShowSaleForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredSales = sales.filter(sale => {
+    const product = products.find(p => p.id === sale.productId);
+    return product?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           sale.invoiceNumber.includes(searchTerm);
+  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  const createSale = (saleData) => {
+    const product = products.find(p => p.id === saleData.productId);
+    if (!product || product.quantityInStock < saleData.quantity) {
+      alert('Insufficient stock!');
+      return;
+    }
+    
+    const total = (saleData.sellingPrice * saleData.quantity) - (saleData.discount || 0);
+    const profit = (saleData.sellingPrice - product.purchaseCost) * saleData.quantity - (saleData.discount || 0);
+    
+    const newSale = {
+      id: generateId(),
+      invoiceNumber: `INV-${Date.now()}`,
+      date: new Date().toISOString(),
+      ...saleData,
+      total,
+      profit,
+      purchaseCost: product.purchaseCost
+    };
+    
+    setSales([...sales, newSale]);
+    
+    // Update product stock
+    setProducts(products.map(p => 
+      p.id === saleData.productId
+        ? {
+            ...p,
+            quantityInDisplay: Math.max(0, p.quantityInDisplay - saleData.quantity),
+            quantityInStock: p.quantityInStock - saleData.quantity
+          }
+        : p
+    ));
+    
+    setShowSaleForm(false);
+  };
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Sales Management</h2>
+          <p className="text-slate-400 text-sm">Track and manage all sales transactions</p>
+        </div>
+        <button
+          onClick={() => setShowSaleForm(true)}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          New Sale
+        </button>
+      </div>
+      
+      <div className="relative">
+        <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search by product or invoice number..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/50"
+        />
+      </div>
+      
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl border border-slate-700/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-900/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Invoice</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Product</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Quantity</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Discount</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Total</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Profit</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/50">
+              {filteredSales.map(sale => {
+                const product = products.find(p => p.id === sale.productId);
+                return (
+                  <tr key={sale.id} className="hover:bg-slate-900/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-white">{sale.invoiceNumber}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">{formatDate(sale.date)}</td>
+                    <td className="px-4 py-3 text-white">{product?.name || 'Unknown'}</td>
+                    <td className="px-4 py-3 text-slate-300">{sale.quantity}</td>
+                    <td className="px-4 py-3 text-slate-300">{formatCurrency(sale.sellingPrice)}</td>
+                    <td className="px-4 py-3 text-orange-400">{formatCurrency(sale.discount || 0)}</td>
+                    <td className="px-4 py-3 text-emerald-400 font-semibold">{formatCurrency(sale.total)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`font-semibold ${sale.profit > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(sale.profit)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => deleteSale(sale.id)}
+                        className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {filteredSales.length === 0 && (
+            <div className="text-center py-12 text-slate-400">
+              No sales found
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {showSaleForm && (
+        <SaleForm
+          products={products.filter(p => p.status === 'Active' && p.quantityInStock > 0)}
+          customers={customers}
+          onSave={createSale}
+          onCancel={() => setShowSaleForm(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SaleForm({ products, customers, onSave, onCancel }) {
+  const [formData, setFormData] = useState({
+    productId: '',
+    quantity: 1,
+    sellingPrice: 0,
+    discount: 0,
+    customerId: ''
+  });
+  
+  const selectedProduct = products.find(p => p.id === formData.productId);
+  
+  useEffect(() => {
+    if (selectedProduct) {
+      setFormData(prev => ({ ...prev, sellingPrice: selectedProduct.currentSellingPrice }));
+    }
+  }, [selectedProduct]);
+  
+  const total = (formData.sellingPrice * formData.quantity) - formData.discount;
+  const profit = selectedProduct 
+    ? (formData.sellingPrice - selectedProduct.purchaseCost) * formData.quantity - formData.discount
+    : 0;
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700/50 max-w-2xl w-full">
+        <div className="p-6 border-b border-slate-700/50">
+          <h3 className="text-xl font-bold text-white">New Sale</h3>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Product *</label>
+            <select
+              required
+              value={formData.productId}
+              onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="">Select a product</option>
+              {products.map(product => (
+                <option key={product.id} value={product.id}>
+                  {product.name} - Stock: {product.quantityInStock} - {formatCurrency(product.currentSellingPrice)}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {selectedProduct && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Quantity * (max: {selectedProduct.quantityInStock})
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  max={selectedProduct.quantityInStock}
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Selling Price *</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  value={formData.sellingPrice}
+                  onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Discount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.discount}
+                  onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Customer (Optional)</label>
+                <select
+                  value={formData.customerId}
+                  onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+                >
+                  <option value="">Walk-in Customer</option>
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+          
+          {selectedProduct && (
+            <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Subtotal:</span>
+                <span className="text-white font-medium">{formatCurrency(formData.sellingPrice * formData.quantity)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Discount:</span>
+                <span className="text-orange-400 font-medium">-{formatCurrency(formData.discount)}</span>
+              </div>
+              <div className="flex justify-between text-lg border-t border-slate-700/50 pt-2">
+                <span className="text-white font-semibold">Total:</span>
+                <span className="text-emerald-400 font-bold">{formatCurrency(total)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Expected Profit:</span>
+                <span className={`font-semibold ${profit > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(profit)}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+            <button
+              type="submit"
+              disabled={!selectedProduct}
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              Complete Sale
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Customers Tab
+function CustomersTab({ customers, setCustomers, installments, sales }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredCustomers = customers.filter(c => 
+    c.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone.includes(searchTerm)
+  );
+  
+  const addCustomer = (customerData) => {
+    const newCustomer = {
+      id: generateId(),
+      ...customerData,
+      createdAt: new Date().toISOString()
+    };
+    setCustomers([...customers, newCustomer]);
+    setShowAddForm(false);
+  };
+  
+  const updateCustomer = (id, updates) => {
+    setCustomers(customers.map(c => c.id === id ? { ...c, ...updates } : c));
+    setEditingCustomer(null);
+  };
+  
+  const deleteCustomer = (id) => {
+    const hasInstallments = installments.some(i => i.customerId === id && i.status !== 'Paid');
+    if (hasInstallments) {
+      alert('Cannot delete customer with active installments');
+      return;
+    }
+    if (confirm('Are you sure you want to delete this customer?')) {
+      setCustomers(customers.filter(c => c.id !== id));
+    }
+  };
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Customer Management</h2>
+          <p className="text-slate-400 text-sm">Manage customer information and relationships</p>
+        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Customer
+        </button>
+      </div>
+      
+      <div className="relative">
+        <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search by name or phone..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/50"
+        />
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredCustomers.map(customer => {
+          const customerInstallments = installments.filter(i => i.customerId === customer.id);
+          const activeInstallments = customerInstallments.filter(i => i.status !== 'Paid');
+          const totalOwed = activeInstallments.reduce((sum, i) => sum + i.remainingBalance, 0);
+          
+          const customerSales = sales.filter(s => s.customerId === customer.id);
+          const totalSpent = customerSales.reduce((sum, s) => sum + s.total, 0);
+          
+          return (
+            <div key={customer.id} className="bg-slate-800/50 backdrop-blur rounded-xl p-5 border border-slate-700/50 hover:border-amber-500/30 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
+                  {customer.fullName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setEditingCustomer(customer)}
+                    className="p-1.5 hover:bg-amber-500/20 text-amber-400 rounded transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => deleteCustomer(customer.id)}
+                    className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <h3 className="text-white font-semibold text-lg mb-1">{customer.fullName}</h3>
+              <div className="space-y-1 text-sm text-slate-400 mb-4">
+                <div>{customer.phone}</div>
+                {customer.address && <div>{customer.address}</div>}
+              </div>
+              
+              <div className="pt-3 border-t border-slate-700/50 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Active Installments:</span>
+                  <span className="text-white font-medium">{activeInstallments.length}</span>
+                </div>
+                {totalOwed > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Amount Owed:</span>
+                    <span className="text-amber-400 font-semibold">{formatCurrency(totalOwed)}</span>
+                  </div>
+                )}
+              </div>
+              
+              {customerSales.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-700/50">
+                  <div className="text-sm text-slate-400 mb-2">Purchase History:</div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto text-xs">
+                    {customerSales.map(sale => (
+                      <div key={sale.id} className="flex justify-between text-slate-300">
+                        <span>{formatDate(sale.date)}</span>
+                        <span>{formatCurrency(sale.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-2 text-sm">
+                    <span className="text-slate-400">Total Spent:</span>
+                    <span className="text-emerald-400 font-semibold">
+                      {formatCurrency(totalSpent)}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {customer.notes && (
+                <div className="mt-3 pt-3 border-t border-slate-700/50">
+                  <p className="text-xs text-slate-400 italic">{customer.notes}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {filteredCustomers.length === 0 && (
+        <div className="text-center py-12 text-slate-400">
+          No customers found
+        </div>
+      )}
+      
+      {(showAddForm || editingCustomer) && (
+        <CustomerForm
+          customer={editingCustomer}
+          onSave={editingCustomer ? updateCustomer : addCustomer}
+          onCancel={() => {
+            setShowAddForm(false);
+            setEditingCustomer(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CustomerForm({ customer, onSave, onCancel }) {
+  const [formData, setFormData] = useState(customer || {
+    fullName: '',
+    phone: '',
+    address: '',
+    notes: ''
+  });
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (customer) {
+      onSave(customer.id, formData);
+    } else {
+      onSave(formData);
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700/50 max-w-md w-full">
+        <div className="p-6 border-b border-slate-700/50">
+          <h3 className="text-xl font-bold text-white">
+            {customer ? 'Edit Customer' : 'Add New Customer'}
+          </h3>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Full Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Phone *</label>
+            <input
+              type="tel"
+              required
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Address</label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows="3"
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              Save Customer
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Installments Tab
+function InstallmentsTab({ installments, setInstallments, customers, sales }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  
+  const filteredInstallments = installments.filter(i => 
+    filterStatus === 'all' || i.status === filterStatus
+  ).sort((a, b) => new Date(a.nextDueDate) - new Date(b.nextDueDate));
+  
+  const addInstallment = (installmentData) => {
+    const newInstallment = {
+      id: generateId(),
+      ...installmentData,
+      createdAt: new Date().toISOString()
+    };
+    setInstallments([...installments, newInstallment]);
+    setShowAddForm(false);
+  };
+  
+  const recordPayment = (installmentId, paymentAmount) => {
+    setInstallments(installments.map(i => {
+      if (i.id !== installmentId) return i;
+      
+      const newBalance = i.remainingBalance - paymentAmount;
+      const newStatus = newBalance <= 0 ? 'Paid' : i.status;
+      
+      // Calculate next due date
+      let nextDueDate = i.nextDueDate;
+      if (newBalance > 0) {
+        const current = new Date(i.nextDueDate);
+        if (i.frequency === 'Weekly') current.setDate(current.getDate() + 7);
+        else if (i.frequency === 'Bi-weekly') current.setDate(current.getDate() + 14);
+        else if (i.frequency === 'Monthly') current.setMonth(current.getMonth() + 1);
+        nextDueDate = current.toISOString();
+      }
+      
+      return {
+        ...i,
+        remainingBalance: Math.max(0, newBalance),
+        status: newStatus,
+        nextDueDate
+      };
+    }));
+    
+    setShowPaymentModal(null);
+  };
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Installment Plans</h2>
+          <p className="text-slate-400 text-sm">Track and manage payment plans</p>
+        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          New Installment Plan
+        </button>
+      </div>
+      
+      <div className="flex gap-2">
+        {['all', 'Paid', 'Partial', 'Late'].map(status => (
+          <button
+            key={status}
+            onClick={() => setFilterStatus(status)}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filterStatus === status
+                ? 'bg-amber-500 text-slate-900'
+                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700'
+            }`}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </button>
+        ))}
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {filteredInstallments.map(installment => {
+          const customer = customers.find(c => c.id === installment.customerId);
+          const sale = sales.find(s => s.invoiceNumber === installment.invoiceNumber);
+          const isOverdue = new Date(installment.nextDueDate) < new Date() && installment.status !== 'Paid';
+          
+          return (
+            <div key={installment.id} className={`bg-slate-800/50 backdrop-blur rounded-xl p-5 border ${
+              isOverdue ? 'border-red-500/50' : 'border-slate-700/50'
+            }`}>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-white font-semibold text-lg">{customer?.fullName || 'Unknown Customer'}</h3>
+                  <p className="text-sm text-slate-400">Invoice: {installment.invoiceNumber}</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  installment.status === 'Paid' 
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : installment.status === 'Late'
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'bg-amber-500/20 text-amber-400'
+                }`}>
+                  {installment.status}
+                </span>
+              </div>
+              
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Total Amount:</span>
+                  <span className="text-white font-medium">{formatCurrency(installment.totalAmount)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Down Payment:</span>
+                  <span className="text-emerald-400">{formatCurrency(installment.downPayment)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Remaining:</span>
+                  <span className="text-amber-400 font-semibold">{formatCurrency(installment.remainingBalance)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Installment:</span>
+                  <span className="text-white">{formatCurrency(installment.installmentAmount)} / {installment.frequency}</span>
+                </div>
+                {installment.status !== 'Paid' && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Next Due:</span>
+                    <span className={`font-medium ${isOverdue ? 'text-red-400' : 'text-white'}`}>
+                      {formatDate(installment.nextDueDate)}
+                      {isOverdue && ' (Overdue)'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {installment.status !== 'Paid' && (
+                <button
+                  onClick={() => setShowPaymentModal(installment)}
+                  className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors"
+                >
+                  Record Payment
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {filteredInstallments.length === 0 && (
+        <div className="text-center py-12 text-slate-400">
+          No installments found
+        </div>
+      )}
+      
+      {showAddForm && (
+        <InstallmentForm
+          customers={customers}
+          sales={sales}
+          onSave={addInstallment}
+          onCancel={() => setShowAddForm(false)}
+        />
+      )}
+      
+      {showPaymentModal && (
+        <PaymentModal
+          installment={showPaymentModal}
+          onRecord={recordPayment}
+          onClose={() => setShowPaymentModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function InstallmentForm({ customers, sales, onSave, onCancel }) {
+  const [formData, setFormData] = useState({
+    invoiceNumber: '',
+    customerId: '',
+    totalAmount: 0,
+    downPayment: 0,
+    installmentAmount: 0,
+    frequency: 'Monthly',
+    nextDueDate: new Date().toISOString().split('T')[0],
+    status: 'Partial'
+  });
+  
+  const selectedSale = sales.find(s => s.invoiceNumber === formData.invoiceNumber);
+  
+  useEffect(() => {
+    if (selectedSale) {
+      setFormData(prev => ({
+        ...prev,
+        totalAmount: selectedSale.total,
+        customerId: selectedSale.customerId || ''
+      }));
+    }
+  }, [selectedSale]);
+  
+  const remainingBalance = formData.totalAmount - formData.downPayment;
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave({ ...formData, remainingBalance });
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700/50 max-w-2xl w-full">
+        <div className="p-6 border-b border-slate-700/50">
+          <h3 className="text-xl font-bold text-white">Create Installment Plan</h3>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Invoice *</label>
+              <select
+                required
+                value={formData.invoiceNumber}
+                onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              >
+                <option value="">Select an invoice</option>
+                {sales.map(sale => (
+                  <option key={sale.id} value={sale.invoiceNumber}>
+                    {sale.invoiceNumber} - {formatCurrency(sale.total)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Customer *</label>
+              <select
+                required
+                value={formData.customerId}
+                onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              >
+                <option value="">Select a customer</option>
+                {customers.map(customer => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Total Amount *</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                value={formData.totalAmount}
+                onChange={(e) => setFormData({ ...formData, totalAmount: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Down Payment *</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                value={formData.downPayment}
+                onChange={(e) => setFormData({ ...formData, downPayment: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Installment Amount *</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                value={formData.installmentAmount}
+                onChange={(e) => setFormData({ ...formData, installmentAmount: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Frequency *</label>
+              <select
+                required
+                value={formData.frequency}
+                onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              >
+                <option value="Weekly">Weekly</option>
+                <option value="Bi-weekly">Bi-weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+            </div>
+            
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-300 mb-2">First Due Date *</label>
+              <input
+                type="date"
+                required
+                value={formData.nextDueDate}
+                onChange={(e) => setFormData({ ...formData, nextDueDate: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+          </div>
+          
+          {formData.totalAmount > 0 && (
+            <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Total Amount:</span>
+                <span className="text-white font-medium">{formatCurrency(formData.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Down Payment:</span>
+                <span className="text-emerald-400 font-medium">{formatCurrency(formData.downPayment)}</span>
+              </div>
+              <div className="flex justify-between text-lg border-t border-slate-700/50 pt-2">
+                <span className="text-white font-semibold">Remaining Balance:</span>
+                <span className="text-amber-400 font-bold">{formatCurrency(remainingBalance)}</span>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              Create Installment Plan
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PaymentModal({ installment, onRecord, onClose }) {
+  const [paymentAmount, setPaymentAmount] = useState(installment.installmentAmount);
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onRecord(installment.id, paymentAmount);
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700/50 max-w-md w-full">
+        <div className="p-6 border-b border-slate-700/50">
+          <h3 className="text-xl font-bold text-white">Record Payment</h3>
+          <p className="text-sm text-slate-400 mt-1">Invoice: {installment.invoiceNumber}</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">Current Balance:</span>
+              <span className="text-amber-400 font-semibold">{formatCurrency(installment.remainingBalance)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">Regular Installment:</span>
+              <span className="text-white">{formatCurrency(installment.installmentAmount)}</span>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Payment Amount (max: {formatCurrency(installment.remainingBalance)})
+            </label>
+            <input
+              type="number"
+              required
+              step="0.01"
+              min="0.01"
+              max={installment.remainingBalance}
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          
+          <div className="bg-emerald-500/10 rounded-lg p-4 border border-emerald-500/30">
+            <div className="flex justify-between">
+              <span className="text-emerald-400 font-semibold">New Balance:</span>
+              <span className="text-emerald-400 font-bold">
+                {formatCurrency(Math.max(0, installment.remainingBalance - paymentAmount))}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              Record Payment
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Reports Tab
+function ReportsTab({ sales, products, installments }) {
+  const [reportType, setReportType] = useState('monthly');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Calculate monthly metrics
+  const monthlySales = sales.filter(sale => {
+    const saleDate = new Date(sale.date);
+    return saleDate.getMonth() === selectedMonth && saleDate.getFullYear() === selectedYear;
+  });
+  
+  const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.total, 0);
+  const monthlyProfit = monthlySales.reduce((sum, sale) => sum + sale.profit, 0);
+  const monthlyCost = monthlySales.reduce((sum, sale) => sum + (sale.purchaseCost * sale.quantity), 0);
+  
+  // Calculate product performance
+  const productPerformance = products.map(product => {
+    const productSales = sales.filter(s => s.productId === product.id);
+    const totalSold = productSales.reduce((sum, s) => sum + s.quantity, 0);
+    const totalRevenue = productSales.reduce((sum, s) => sum + s.total, 0);
+    const totalProfit = productSales.reduce((sum, s) => sum + s.profit, 0);
+    
+    return {
+      ...product,
+      totalSold,
+      totalRevenue,
+      totalProfit
+    };
+  }).sort((a, b) => b.totalRevenue - a.totalRevenue);
+  
+  // Calculate installment metrics
+  const activeInstallments = installments.filter(i => i.status !== 'Paid');
+  const totalOutstanding = activeInstallments.reduce((sum, i) => sum + i.remainingBalance, 0);
+  const overdueInstallments = activeInstallments.filter(i => new Date(i.nextDueDate) < new Date());
+  
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white">Business Reports</h2>
+        <p className="text-slate-400 text-sm">Comprehensive analytics and insights</p>
+      </div>
+      
+      {/* Month/Year Selector */}
+      <div className="flex gap-4 items-center bg-slate-800/50 backdrop-blur rounded-xl p-4 border border-slate-700/50">
+        <Calendar className="w-5 h-5 text-amber-400" />
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+          className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+        >
+          {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, index) => (
+            <option key={month} value={index}>{month}</option>
+          ))}
+        </select>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+        >
+          {[2024, 2025, 2026].map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      </div>
+      
+      {/* Monthly Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 backdrop-blur rounded-xl p-6 border border-emerald-500/30">
+          <div className="text-sm text-slate-300 font-medium mb-2">Monthly Revenue</div>
+          <div className="text-3xl font-bold text-white mb-1">{formatCurrency(monthlyRevenue)}</div>
+          <div className="text-xs text-emerald-400">{monthlySales.length} transactions</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur rounded-xl p-6 border border-blue-500/30">
+          <div className="text-sm text-slate-300 font-medium mb-2">Monthly Profit</div>
+          <div className="text-3xl font-bold text-white mb-1">{formatCurrency(monthlyProfit)}</div>
+          <div className="text-xs text-blue-400">
+            {((monthlyProfit / monthlyRevenue) * 100 || 0).toFixed(1)}% margin
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur rounded-xl p-6 border border-amber-500/30">
+          <div className="text-sm text-slate-300 font-medium mb-2">Outstanding Payments</div>
+          <div className="text-3xl font-bold text-white mb-1">{formatCurrency(totalOutstanding)}</div>
+          <div className="text-xs text-amber-400">{activeInstallments.length} active plans</div>
+        </div>
+      </div>
+      
+      {/* Product Performance */}
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700/50">
+        <h3 className="text-lg font-semibold text-white mb-4">Product Performance (All Time)</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-900/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Product</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Units Sold</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Revenue</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Profit</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Stock</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/50">
+              {productPerformance.slice(0, 10).map(product => (
+                <tr key={product.id} className="hover:bg-slate-900/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-white">{product.name}</div>
+                    <div className="text-xs text-slate-400">{product.category}</div>
+                  </td>
+                  <td className="px-4 py-3 text-white font-semibold">{product.totalSold}</td>
+                  <td className="px-4 py-3 text-emerald-400 font-semibold">{formatCurrency(product.totalRevenue)}</td>
+                  <td className="px-4 py-3 text-blue-400 font-semibold">{formatCurrency(product.totalProfit)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`font-semibold ${
+                      product.quantityInStock <= product.minimumStockAlert 
+                        ? 'text-red-400' 
+                        : 'text-white'
+                    }`}>
+                      {product.quantityInStock}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* Installment Overview */}
+      {overdueInstallments.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-red-400 mb-4 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            Overdue Installments ({overdueInstallments.length})
+          </h3>
+          <div className="space-y-2">
+            {overdueInstallments.map(installment => (
+              <div key={installment.id} className="flex justify-between items-center text-sm">
+                <span className="text-slate-300">{installment.invoiceNumber}</span>
+                <span className="text-red-400 font-semibold">{formatCurrency(installment.remainingBalance)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Inventory Value */}
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700/50">
+        <h3 className="text-lg font-semibold text-white mb-4">Inventory Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div className="text-sm text-slate-400 mb-1">Total Products</div>
+            <div className="text-2xl font-bold text-white">{products.length}</div>
+          </div>
+          <div>
+            <div className="text-sm text-slate-400 mb-1">Total Units in Stock</div>
+            <div className="text-2xl font-bold text-white">
+              {products.reduce((sum, p) => sum + p.quantityInStock, 0)}
+            </div>
+          </div>
+          <div>
+            <div className="text-sm text-slate-400 mb-1">Inventory Value</div>
+            <div className="text-2xl font-bold text-white">
+              {formatCurrency(products.reduce((sum, p) => sum + (p.purchaseCost * p.quantityInStock), 0))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

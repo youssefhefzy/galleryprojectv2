@@ -1,0 +1,26 @@
+{
+  "name": "Sharf-Aldin Gallery",
+  "short_name": "Gallery",
+  "description": "Inventory & Sales Management System",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='24' fill='%23f59e0b'/><path d='M96 40 L148 70 L148 122 L96 152 L44 122 L44 70 Z' fill='none' stroke='%231e293b' stroke-width='10'/><line x1='44' y1='70' x2='96' y2='96' stroke='%231e293b' stroke-width='8'/><line x1='148' y1='70' x2='96' y2='96' stroke='%231e293b' stroke-width='8'/><line x1='96' y1='96' x2='96' y2='152' stroke='%231e293b' stroke-width='8'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='64' fill='%23f59e0b'/><path d='M256 100 L400 180 L400 320 L256 400 L112 320 L112 180 Z' fill='none' stroke='%231e293b' stroke-width='24'/><line x1='112' y1='180' x2='256' y2='256' stroke='%231e293b' stroke-width='20'/><line x1='400' y1='180' x2='256' y2='256' stroke='%231e293b' stroke-width='20'/><line x1='256' y1='256' x2='256' y2='400' stroke='%231e293b' stroke-width='20'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": []
+}
