@@ -14,6 +14,7 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
+    
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='64' fill='%23f59e0b'/><path d='M256 100 L400 180 L400 320 L256 400 L112 320 L112 180 Z' fill='none' stroke='%231e293b' stroke-width='24'/><line x1='112' y1='180' x2='256' y2='256' stroke='%231e293b' stroke-width='20'/><line x1='400' y1='180' x2='256' y2='256' stroke='%231e293b' stroke-width='20'/><line x1='256' y1='256' x2='256' y2='400' stroke='%231e293b' stroke-width='20'/></svg>",
       "sizes": "512x512",
@@ -24,3 +25,4 @@
   "categories": ["business", "productivity"],
   "screenshots": []
 }
+
