@@ -1,5 +1,6 @@
 const CACHE_NAME = 'gallery-v1';
 const ASSETS = [
+  
   '/index.html',
   '/manifest.json',
   'https://unpkg.com/react@18/umd/react.production.min.js',
