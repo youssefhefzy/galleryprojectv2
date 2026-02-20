@@ -8,6 +8,7 @@ const ASSETS = [
   'https://cdn.tailwindcss.com'
 ];
 
+
 // Install: cache all core assets
 self.addEventListener('install', event => {
   event.waitUntil(
