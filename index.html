@@ -1208,5 +1208,15 @@ if('serviceWorker' in navigator){
     });
 }
 </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  const supabase = window.supabase.createClient(
+    "https://jalgvsyybjhavcmiszbl.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphbGd2c3l5YmpoYXZjbWlzemJsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjQwNDA0MiwiZXhwIjoyMDg3OTgwMDQyfQ.Jd3mppQHxCltae87IpDAFdYyY_Uoqu4-OweQaL02l7A"
+  );
+
+  console.log("Supabase connected!");
+</script>
 </body>
 </html>
